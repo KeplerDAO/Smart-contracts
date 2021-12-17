@@ -28,6 +28,7 @@ contract Treasury is Ownable {
 
     IKeplerERC20 immutable KEEPER;
     uint public immutable secondsNeededForQueue;
+    uint public constant keeperDecimals = 9;
 
     address[] public reserveTokens; // Push only, beware false-positives.
     mapping( address => bool ) public isReserveToken;
@@ -263,7 +264,7 @@ contract Treasury is Ownable {
     function valueOfToken( address _token, uint _amount ) public view returns ( uint value_ ) {
         if ( isReserveToken[ _token ] ) {
             // convert amount to match KEEPER decimals
-            value_ = _amount.mul( 10 ** KEEPER.decimals() ).div( 10 ** IERC20Extended( _token ).decimals() );
+            value_ = _amount.mul( 10 ** keeperDecimals ).div( 10 ** IERC20Extended( _token ).decimals() );
         } else if ( isLiquidityToken[ _token ] ) {
             value_ = IBondCalculator( bondCalculator[ _token ] ).valuation( _token, _amount );
         }

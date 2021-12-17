@@ -80,7 +80,7 @@ contract StakingDistributor is Ownable {
                 }
             } else { // if rate should decrease
                 info[ _index ].rate = info[ _index ].rate.sub( adjustment.rate ); // lower rate
-                if ( info[ _index ].rate <= adjustment.target ) { // if target met
+                if ( info[ _index ].rate <= adjustment.target || info[ _index ].rate < adjustment.rate) { // if target met
                     adjustments[ _index ].rate = 0; // turn off adjustment
                 }
             }
@@ -137,8 +137,8 @@ contract StakingDistributor is Ownable {
      */
     function removeRecipient( uint _index, address _recipient ) external onlyOwner() {
         require( _recipient == info[ _index ].recipient );
-        info[ _index ].recipient = address(0);
-        info[ _index ].rate = 0;
+        info[ _index ] = info[info.length-1];
+        info.pop();
     }
 
     /**
@@ -149,6 +149,7 @@ contract StakingDistributor is Ownable {
         @param _target uint
      */
     function setAdjustment( uint _index, bool _add, uint _rate, uint _target ) external onlyOwner() {
+        require(_add || info[ _index ].rate >= _rate, "Negative adjustment rate cannot be more than current rate.");
         adjustments[ _index ] = Adjust({
             add: _add,
             rate: _rate,

@@ -61,6 +61,7 @@ contract sKeplerERC20 is ERC20 {
     function setIndex(uint _INDEX) external {
         require(msg.sender == initializer);
         require(INDEX == 0);
+        require(_INDEX != 0);
         INDEX = gonsForBalance(_INDEX);
     }
 

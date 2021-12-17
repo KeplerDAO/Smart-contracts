@@ -76,13 +76,15 @@ contract VLPBondDepository is Ownable {
 
     /* ======== INITIALIZATION ======== */
 
-    constructor ( address _KEEPER, address _principle, address _treasury, address _bondCalculator, address _feed) {
+    constructor ( address _KEEPER, address _principle, address _staking, address _treasury, address _bondCalculator, address _feed) {
         require( _KEEPER != address(0) );
         KEEPER = _KEEPER;
         require( _principle != address(0) );
         principle = _principle;
         require( _treasury != address(0) );
         treasury = _treasury;
+        require( _staking != address(0) );
+        staking = _staking;
         require( _bondCalculator != address(0) );
         bondCalculator = _bondCalculator;
         require( _feed != address(0) );
@@ -100,7 +102,7 @@ contract VLPBondDepository is Ownable {
      */
     function initializeBondTerms(uint _controlVariable, uint32 _vestingTerm, uint _minimumPrice, uint _maxPayout,
                                  uint _maxDebt, uint _initialDebt) external onlyOwner() {
-        // require( currentDebt() == 0, "Debt must be 0 for initialization" );
+        require( terms.controlVariable == 0 && terms.vestingTerm == 0, "Bonds must be initialized from 0" );
         terms = Terms ({
             controlVariable: _controlVariable,
             vestingTerm: _vestingTerm,
@@ -125,6 +127,7 @@ contract VLPBondDepository is Ownable {
     function setBondTerms ( PARAMETER _parameter, uint _input ) external onlyOwner() {
         if ( _parameter == PARAMETER.VESTING ) { // 0
             require( _input >= 129600, "Vesting must be longer than 36 hours" );
+            require( currentDebt() == 0, "Debt should be 0." );
             terms.vestingTerm = uint32(_input);
         } else if ( _parameter == PARAMETER.PAYOUT ) { // 1
             require( _input <= 1000, "Payout cannot be above 1 percent" );
@@ -159,10 +162,10 @@ contract VLPBondDepository is Ownable {
      *  @notice set contract for auto stake
      *  @param _staking address
      */
-    function setStaking( address _staking ) external onlyOwner() {
-        require( _staking != address(0) );
-        staking = _staking;
-    }
+    // function setStaking( address _staking ) external onlyOwner() {
+    //     require( _staking != address(0) );
+    //     staking = _staking;
+    // }
 
 
     /* ======== USER FUNCTIONS ======== */
@@ -177,7 +180,6 @@ contract VLPBondDepository is Ownable {
     function deposit( uint _amount, uint _maxPrice, address _depositor) external returns ( uint ) {
         require( _depositor != address(0), "Invalid address" );
         decayDebt();
-        require( totalDebt <= terms.maxDebt, "Max capacity reached" );
         
         uint priceInUSD = bondPriceInUSD(); // Stored in bond info
         uint nativePrice = _bondPrice();
@@ -199,6 +201,7 @@ contract VLPBondDepository is Ownable {
         
         // total debt is increased
         totalDebt = totalDebt.add( value ); 
+        require( totalDebt <= terms.maxDebt, "Max capacity reached" );
                 
         // depositor info is stored
         bondInfo[ _depositor ] = Bond({ 
@@ -283,7 +286,7 @@ contract VLPBondDepository is Ownable {
                 }
             } else {
                 terms.controlVariable = terms.controlVariable.sub( adjustment.rate );
-                if ( terms.controlVariable <= adjustment.target ) {
+                if ( terms.controlVariable <= adjustment.target || terms.controlVariable < adjustment.rate ) {
                     adjustment.rate = 0;
                 }
             }

@@ -79,14 +79,15 @@ contract Staking is Ownable {
                 require( _recipient == msg.sender, "External deposits for account are locked" );
             }
 
+            uint sKeeperGons = sKEEPER.gonsForBalance( _amount );
             warmupInfo[ _recipient ] = Claim ({
                 deposit: info.deposit.add(_amount),
-                gons: info.gons.add(sKEEPER.gonsForBalance( _amount )),
+                gons: info.gons.add(sKeeperGons),
                 expiry: epoch.number.add32(warmupPeriod),
                 lock: info.lock
             });
 
-            gonsInWarmup = gonsInWarmup.add(sKEEPER.gonsForBalance( _amount ));
+            gonsInWarmup = gonsInWarmup.add(sKeeperGons);
             return _amount;
         }
     }
@@ -150,11 +151,13 @@ contract Staking is Ownable {
                 IDistributor( distributor ).distribute();
             }
 
-            if( contractBalance() <= totalStaked() ) {
+            uint contractBalanceVal = contractBalance();
+            uint totalStakedVal = totalStaked();
+            if( contractBalanceVal <= totalStakedVal ) {
                 epoch.distribute = 0;
             }
             else {
-                epoch.distribute = contractBalance().sub(totalStaked());
+                epoch.distribute = contractBalanceVal.sub(totalStakedVal);
             }
         }
     }
