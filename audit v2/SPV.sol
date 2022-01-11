@@ -52,6 +52,7 @@ contract SPV is Ownable {
     uint public spvRecordedValue;
     uint public recordTime;
     uint public profitInterval;
+    bool public allowUpdate;    // False when SPV is transferring funds
 
 
     constructor (address _treasury, address _USDC, address _USDT, address _DAI, address _SPVWallet, uint _profitInterval) {
@@ -80,7 +81,18 @@ contract SPV is Ownable {
         require( _profitInterval > 0, "Interval cannot be 0" );
         profitInterval = _profitInterval;
         spvRecordedValue = 0;
+        allowUpdate = true;
         updateTotalValue();
+    }
+
+
+    function enableUpdates() external onlyOwner() {
+        allowUpdate = true;
+    }
+
+
+    function disableUpdates() external onlyOwner() {
+        allowUpdate = false;
     }
 
 
@@ -190,24 +202,21 @@ contract SPV is Ownable {
     }
 
 
-    function updateSpvValue() external onlyOwner() {
-        updateTotalValue();
-    }
-
-
-    function auditTotalValue() external onlyOwner() {
-        uint newValue;
-        for ( uint i = 0; i < tokens.length; i++ ) {
-            PRICETYPE priceType = tokens[i].priceType;
-            if (priceType == PRICETYPE.CHAINLINK) {
-                tokens[i].price = chainlinkTokenPrice(tokens[i].token);
-            } else if (priceType == PRICETYPE.UNISWAP) {
-                tokens[i].price = uniswapTokenPrice(tokens[i].token);
+    function auditTotalValue() external {
+        if ( allowUpdate ) {
+            uint newValue;
+            for ( uint i = 0; i < tokens.length; i++ ) {
+                PRICETYPE priceType = tokens[i].priceType;
+                if (priceType == PRICETYPE.CHAINLINK) {
+                    tokens[i].price = chainlinkTokenPrice(tokens[i].token);
+                } else if (priceType == PRICETYPE.UNISWAP) {
+                    tokens[i].price = uniswapTokenPrice(tokens[i].token);
+                }
+                newValue = newValue.add( getTokenBalance(i) );
             }
-            newValue = newValue.add( getTokenBalance(i) );
+            totalValue = newValue;
+            emit ValueAudited(totalValue);
         }
-        totalValue = newValue;
-        emit ValueAudited(totalValue);
     }
 
 
@@ -261,11 +270,13 @@ contract SPV is Ownable {
 
 
     function updateTotalValue() internal {
-        uint newValue;
-        for ( uint i = 0; i < tokens.length; i++ ) {
-            newValue = newValue.add( getTokenBalance(i) );
+        if ( allowUpdate ) {
+            uint newValue;
+            for ( uint i = 0; i < tokens.length; i++ ) {
+                newValue = newValue.add( getTokenBalance(i) );
+            }
+            totalValue = newValue;
         }
-        totalValue = newValue;
     }
 
 
